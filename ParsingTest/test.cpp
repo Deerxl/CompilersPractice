@@ -1,6 +1,7 @@
 #include <iostream>
 #include <fstream>
-//#include <fstream>
+#include "parsing.h"
+#include <string>
 using namespace std;
 
 #define MaxPerToken 25
@@ -14,26 +15,25 @@ using namespace std;
 const char* keyWords[] = { "int", "void", "main", "if", "else", "while", "for", "bool" , "true", "false", "return" };
 char boundaries[] = { ',', ';', '(', ')', '{', '}' };
 char operators[] = { '+', '-', '*', '/', '%', '!', '=', '<', '>', '&', '|' };
-char* constants[]; //存储常数
+int* constants = new int[20]; //存储常数
 int constantCount = 0; //记录常数的数量
 int identifierCount = 0; //记录标识符的数量
-int line = 0; //记录当前分析的单词的行数
+int line = 1; //记录当前分析的单词的行数
 
 char buff[1000]; //存储预处理后的单词符号
 int i = 0;
-char* identifier; //记录当前未定义的标识符
+string identifier = ""; //记录当前未定义的标识符
 int value = 0;
 int type = 0;
 int emptyFlag = 0; //标记 算术表达式中是否遇到了 ε
+ofstream out2;        //文件输出 语法分析
 
-struct Identifiers      //存储标识符
+struct IdentifiersTable      //存储标识符
 {
-	int idType;               //标识符的类型
-	char idName[25]; //标识符的名称
-	char idValue[25];//标识符的值
+	int idType = 0;               //标识符的类型
+	string idName = ""; //标识符的名称
+	char* idValue = NULL;//标识符的值
 }IDTable[100];
-
-
 
 int isDigit(char temp)
 {
@@ -94,13 +94,13 @@ int isOperator(char temp)
 	return 0;
 }
 
-int isIdentifier(char temp[])
+int isIdentifier(string temp)
 {
 	for (int id = 0; id < identifierCount; id++)
 	{
-		if (temp == IDTable[i].idName)
+		if (temp == IDTable[id].idName)
 		{
-			return IDTable[i].idType;
+			return IDTable[id].idType;
 		}
 	}
 	return 0;
@@ -122,7 +122,7 @@ void preTreatment(char temp[])
 {
 	int j = 0;
 
-	for (int i = 0; temp[i] != '#'; i++)
+	for (int i = 0; temp[i] != '\0'; i++)
 	{
 
 		if (temp[i] == '\t' || temp[i] == '\r')
@@ -143,6 +143,7 @@ void preTreatment(char temp[])
 				i++;
 				while (temp[i] != '\n')
 				{
+					//
 					i++;
 				}
 				buff[j++] = temp[i];
@@ -160,13 +161,18 @@ void preTreatment(char temp[])
 				}
 				i++;
 			}
+			else
+			{
+				buff[j++] = temp[i-1];
+			}
 			continue;
 		}
 
 		buff[j++] = temp[i];
 	}
+	//buff[j++] = '#';
 	buff[j] = '\0';
-} 
+}
 
 
 /*获取一个单词符号
@@ -178,22 +184,26 @@ void preTreatment(char temp[])
 返回5，数字，存入 constants 中，返回value值
 返回6，词法错误类型，无value值
 */
-int GetNext(int value)
+int GetNext(int& value)
 {
 	int j = 0;
 	char token[MaxPerToken];
 
-	ofstream out("LexicalAnalysisOutput.text");
+	/*ofstream out("LexicalAnalysisOutput.text");
 	if (!out.is_open())
 	{
-		cout << "Error opening file" << endl;
+		out2 << "Error opening file" << endl;
 		exit(0);
-	}
+	}*/
 
-	for (i; buff[i] != '#'; i++)
+	for (i; buff[i] != '\0'; i++)
 	{
-		while (buff[i] == ' ')
+		while (buff[i] == ' ' || buff[i] == '\n')
 		{
+			if (buff[i] == '\n')
+			{
+				line++;
+			}
 			i++;
 		}
 
@@ -202,39 +212,39 @@ int GetNext(int value)
 			token[m] = '\0';
 		}
 		j = 0;
-		if (buff[i] == '\n')
-		{
-			line++;
-			i++;
-		}
+
 		if (isCharacter(buff[i]))
 		{
 			while (isCharacter(buff[i]) || isDigit(buff[i]) || buff[i] == '_')
 			{
 				token[j++] = buff[i++];
 			}
-			token[j] = '\0';
 			i--;
+			token[j] = '\0';
 			if (int key = isKeyWord(token))
 			{
 
-				out << "(" << TypeKeyWord << ", " << key << ")" << endl;
+				//out << "(" << TypeKeyWord << ", " << key << ")" << endl;
 
 				value = isKeyWord(token);
+				i++;
 				return TypeKeyWord;
 			}
+
 			else if (isIdentifier(token))
 			{
 
-				out << "(" << TypeIdentifier << ", " << token << ")" << endl;
+				//out << "(" << TypeIdentifier << ", " << token << ")" << endl;
 				identifier = token;
 				value = isIdentifier(token);
+				i++;
 				return TypeIdentifier;
 			}
 			else
 			{
-				out << "(" << TypeIdentifier << ", " << token << ")" << endl;
+				//out << "(" << TypeIdentifier << ", " << token << ")" << endl;
 				identifier = token;
+				i++;
 				return 0;
 			}
 		}
@@ -245,32 +255,31 @@ int GetNext(int value)
 				token[j++] = buff[i++];
 			}
 			token[j] = '\0';
-			i--;	
 			//int key = isKeyWord(token);
 			if (int key = isKeyWord(token))
 			{
 				value = isKeyWord(token);
-				out << "(" << TypeKeyWord << ", " << key << ")" << endl;
+				//out << "(" << TypeKeyWord << ", " << key << ")" << endl;
 				return TypeKeyWord;
 			}
 			else if (isIdentifier(token))
 			{
 				value = isIdentifier(token);
 				identifier = token;
-				out << "(" << TypeIdentifier << ", " << token << ")" << endl;
+				//out << "(" << TypeIdentifier << ", " << token << ")" << endl;
 				return TypeIdentifier;
 			}
 			else
 			{
 				identifier = token;
-				out << "(" << TypeIdentifier << ", " << token << ")" << endl;
+				//out << "(" << TypeIdentifier << ", " << token << ")" << endl;
 				return 0;
 			}
 		}
 		else if (isDigit(buff[i]))
 		{
 			int flag = 1;
-			while ( isDigit(buff[i]) || isCharacter(buff[i]))
+			while (isDigit(buff[i]) || isCharacter(buff[i]))
 			{
 				token[j++] = buff[i++];
 			}
@@ -281,209 +290,196 @@ int GetNext(int value)
 				if (isCharacter(buff[i]))
 				{
 					flag = 0;
-					out << "(" << TypeError << ", " << token << ")" << endl;
+					//out << "(" << TypeError << ", " << token << ")" << endl;
 
 					return TypeError;
 				}
 			}
 			if (flag)
 			{
-				out << "(" << TypeConstant << ", " << token << ")" << endl;
+				//out << "(" << TypeConstant << ", " << token << ")" << endl;
 
-				constants[constantCount] = token;
-				value = constantCount++;				
+				constants[constantCount] = atoi(token);
+				value = constantCount++;
+				i++;
 				return TypeConstant;
 			}
 		}
 		else if (int key1 = isOperator(buff[i]))
 		{
-			int j = i;
+			int j = i++;
 			int key2 = isOperator(buff[++j]);
-
 			switch (key1)
 			{
 			case 1:
 				switch (key2)
 				{
 				case 7:
-					value = 12;
-					out << "(" << TypeOperator << ", " << value << ")" << endl;
+					value = 12; i++; 
+					//out << "(" << TypeOperator << ", " << value << ")" << endl;
 					return TypeOperator;
 				case 1:
-					value = 23;
-					out << "(" << TypeOperator << ", " << value << ")" << endl;
+					value = 23; i++; 
+					//out << "(" << TypeOperator << ", " << value << ")" << endl;
 					return TypeOperator;
 				default:
 					value = key1;
-					out << "(" << TypeOperator << ", " << value << ")" << endl;
+					//out << "(" << TypeOperator << ", " << value << ")" << endl;
 					return TypeOperator;
 				}
 			case 2:
 				switch (key2)
 				{
 				case 7:
-					value = 13;
-					out << "(" << TypeOperator << ", " << value << ")" << endl;
+					value = 13; i++; 
+					//out << "(" << TypeOperator << ", " << value << ")" << endl;
 					return TypeOperator;
 				case 2:
-					value = 24;
-					out << "(" << TypeOperator << ", " << value << ")" << endl;
+					value = 24; i++; 
+					//out << "(" << TypeOperator << ", " << value << ")" << endl;
 					return TypeOperator;
 				default:
 					value = key1;
-					out << "(" << TypeOperator << ", " << value << ")" << endl;
+					//out << "(" << TypeOperator << ", " << value << ")" << endl;
 					return TypeOperator;
 				}
 			case 3:
 				if (key2 == 7)
 				{
-					value = 14;
-					out << "(" << TypeOperator << ", " << value << ")" << endl;
+					value = 14; i++; 
+					//out << "(" << TypeOperator << ", " << value << ")" << endl;
 					return TypeOperator;
 				}
 				else
 				{
 					value = key1;
-					out << "(" << TypeOperator << ", " << value << ")" << endl;
+					//out << "(" << TypeOperator << ", " << value << ")" << endl;
 					return TypeOperator;
 				}
 			case 4:
 				if (key2 == 7)
 				{
-					value = 15;
-					out << "(" << TypeOperator << ", " << value << ")" << endl;
+					value = 15; i++; 
+					//out << "(" << TypeOperator << ", " << value << ")" << endl;
 					return TypeOperator;
 				}
 				else
 				{
 					value = key1;
-					out << "(" << TypeOperator << ", " << value << ")" << endl;
+					//out << "(" << TypeOperator << ", " << value << ")" << endl;
 					return TypeOperator;
 				}
 			case 5:
 				if (key2 == 7)
 				{
-					value = 16;
-					out << "(" << TypeOperator << ", " << value << ")" << endl;
+					value = 16; i++; 
+					//out << "(" << TypeOperator << ", " << value << ")" << endl;
 					return TypeOperator;
 				}
 				else
 				{
 					value = key1;
-					out << "(" << TypeOperator << ", " << value << ")" << endl;
+					//out << "(" << TypeOperator << ", " << value << ")" << endl;
 					return TypeOperator;
 				}
 			case 6:
 				if (key2 == 7)
 				{
-					value = 17;
-					out << "(" << TypeOperator << ", " << value << ")" << endl;
+					value = 17; i++; 
+					//out << "(" << TypeOperator << ", " << value << ")" << endl;
 					return TypeOperator;
 				}
 				else
 				{
 					value = key1;
-					out << "(" << TypeOperator << ", " << value << ")" << endl;
+					//out << "(" << TypeOperator << ", " << value << ")" << endl;
 					return TypeOperator;
 				}
 			case 7:
 				if (key2 == 7)
 				{
-					value = 18;
-					out << "(" << TypeOperator << ", " << value << ")" << endl;
+					value = 18; i++; 
+					//out << "(" << TypeOperator << ", " << value << ")" << endl;
 					return TypeOperator;
 				}
 				else
 				{
 					value = key1;
-					out << "(" << TypeOperator << ", " << value << ")" << endl;
+					//out << "(" << TypeOperator << ", " << value << ")" << endl;
 					return TypeOperator;
 				}
 			case 8:
 				if (key2 == 7)
 				{
-					value = 19;
-					out << "(" << TypeOperator << ", " << value << ")" << endl;
+					value = 19; i++; 
+					//out << "(" << TypeOperator << ", " << value << ")" << endl;
 					return TypeOperator;
 				}
 				else
 				{
 					value = key1;
-					out << "(" << TypeOperator << ", " << value << ")" << endl;
+					//out << "(" << TypeOperator << ", " << value << ")" << endl;
 					return TypeOperator;
 				}
 			case 9:
 				if (key2 == 7)
 				{
-					value = 20;
-					out << "(" << TypeOperator << ", " << value << ")" << endl;
+					value = 20; i++; 
+					//out << "(" << TypeOperator << ", " << value << ")" << endl;
 					return TypeOperator;
 				}
 				else
 				{
 					value = key1;
-					out << "(" << TypeOperator << ", " << value << ")" << endl;
+					//out << "(" << TypeOperator << ", " << value << ")" << endl;
 					return TypeOperator;
 				}
 			case 10:
 				if (key2 == key1)
 				{
-					value = 21;
-					out << "(" << TypeOperator << ", " << value << ")" << endl;
+					value = 21; i++; 
+					//out << "(" << TypeOperator << ", " << value << ")" << endl;
 					return TypeOperator;
 				}
 				else
 				{
 					value = key1;
-					out << "(" << TypeOperator << ", " << value << ")" << endl;
+					//out << "(" << TypeOperator << ", " << value << ")" << endl;
 					return TypeOperator;
 				}
 			case 11:
 				if (key2 == key1)
 				{
-					value = 22;
-					out << "(" << TypeOperator << ", " << value << ")" << endl;
+					value = 22; i++; 
+					//out << "(" << TypeOperator << ", " << value << ")" << endl;
 					return TypeOperator;
 				}
 				else
 				{
 					value = key1;
-					out << "(" << TypeOperator << ", " << value << ")" << endl;
+					//out << "(" << TypeOperator << ", " << value << ")" << endl;
 					return TypeOperator;
 				}
 			}
 		}
-		else if (int key = isBoundary(buff[i]))
+		else if (int key2 = isBoundary(buff[i]))
 		{
-			token[j] = buff[i];
-			out << "(" << TypeBoundrary << ", " << key << ")" << endl;
-			value = key;
+			token[j] = buff[i++];
+			//out << "(" << TypeBoundrary << ", " << key << ")" << endl;
+			value = key2;
 			return TypeBoundrary;
 		}
 		else
 		{
-			out << "(" << TypeError << ", " << buff[i] << ")" << endl;
+			i++;
 			return TypeError;
 		}
 	}
-	out.close();
+	//out.close();
+	return -1;
 }
 
-void myExpE();
-void myExpE1();
-void myExpT();
-void myExpT1();
-void myExpF();
-
-void myCondition();
-void myWhile();
-void myDeclare(int typetmp, int valuetmp);
-void myAssignmentStmt();
-void myIf();
-void myFunctionStmt(int typetmp, int valuetmp);
-void myFunctionBody();
-
-/*简单算术表达式文法实现
+/*简单算术表达式文法实现           开始应为表达式第一个符号
 E->TE’
 E’->+TE’|-TE’|ε
 T->FT’
@@ -495,80 +491,68 @@ void myExpE()
 {
 	myExpT();
 	myExpE1();
-	return;
 }
 void myExpT()
 {
 	myExpF();
 	myExpT1();
-	return;
 }
 void myExpE1()
 {
 	if (type == TypeOperator && value == 1)
 	{
+		type = GetNext(value);
 		myExpT();
 		myExpE1();
-		return;
+		//return;
 	}
 	else if (type == TypeOperator && value == 2)
 	{
+		type = GetNext(value);
 		myExpT();
 		myExpE1();
-		return;
-	}
-	else
-	{
-		emptyFlag = 1;
-		return;
 	}
 }
 void myExpT1()
 {
-	type = GetNext(value);
+	
 	if (type == TypeOperator && value == 3)
 	{
+		type = GetNext(value);
 		myExpF();
 		myExpT1();
-		return;
+		//return;
 	}
 	else if (type == TypeOperator && value == 4)
 	{
+		type = GetNext(value);
 		myExpF();
 		myExpT1();
-		return;
-	}
-	else
-	{
-		emptyFlag = 1;
-		return;
 	}
 }
 void myExpF()
 {
-	type = GetNext(value);
-	if (type == TypeBoundrary && value == 3)
+	if (type == TypeBoundrary && value == 3)   // (
 	{
-		myExpE();
 		type = GetNext(value);
-		if (type == TypeBoundrary && value == 4)
+		myExpE();
+		// )
+		if (type == TypeBoundrary && value == 4)  // )
 		{
-			return;
+			type = GetNext(value);
 		}
 		else
 		{
-			cout << "erro: line " << line << ", 赋值错误，缺少')'" << endl;
-			return;
+			out2 << "erro: line " << line << ", 赋值错误，缺少')'" << endl;
 		}
 	}
 	else if (type == TypeIdentifier || type == TypeConstant)
 	{
-		return;
+		type = GetNext(value);
 	}
 	else
 	{
-		cout << "erro: line " << line << ", 赋值错误" << endl;
-		return;
+		out2 << "erro: line " << line << ", 表达式错误" << endl;
 	}
 }
 //*************************简单算术表达式************************************
@@ -577,38 +561,28 @@ void myExpF()
 void myCondition()
 {
 	type = GetNext(value);
-	if ((type == 1 && value == 8) || (type == 1 && value == 9) // 为 true false 0 1
-		|| (type == 5 && '0' == *constants[value]) || (type == 5 && '1' == *constants[value]))
+	if ((type == TypeKeyWord && value == 9) || (type == TypeKeyWord && value == 10)) // 为 true false
 	{
 		return;
 	}
-	else if ((type == 5 && constants[value]) || (isIdentifier(identifier)))    //为表达式
+	else if (type == TypeOperator && value == 6)     //为 !
 	{
 		type = GetNext(value);
-		if (type == 2 && ((value >= 17 && value <= 22) || value == 8 || value == 9))
+		myExpE();
+	}
+	else
+	{
+		myExpE();
+
+		if (type == TypeOperator && (value == 8 || value == 9 || (value >= 17 && value <= 22)))
 		{
+			type = GetNext(value);
 			myExpE();
 		}
 		else
 		{
-			cout << "erro: line " << line << ", 条件语句错误" << endl;
-		}
-	}
-	else if (type == 2 && value == 6)     //为 !
-	{
-		type = GetNext(value);
-		if ((type == 5 && constants[value]) || isIdentifier(identifier))
-		{
 			return;
 		}
-		else
-		{
-			cout << "erro: line " << line << ", 条件语句错误" << endl;
-		}
-	}
-	else
-	{
-		cout << "erro: line " << line << ", 条件语句错误" << endl;
 	}
 }
 
@@ -616,42 +590,38 @@ void myCondition()
 void myWhile()
 {
 	type = GetNext(value);
-	if (type == TypeBoundrary && value == 3)
+	if (type == TypeBoundrary && value == 3)  // (
 	{
 		myCondition();
-		if (!emptyFlag)
+		if (type == TypeBoundrary && value == 4)  // )
 		{
 			type = GetNext(value);
-		}
-		if (type == TypeBoundrary && value == 4)
-		{
-			type = GetNext(value);
-			if (type == TypeBoundrary && value == 5)
+			if (type == TypeBoundrary && value == 5)  // {
 			{
+				type = GetNext(value);
 				myFunctionBody();
-				//pointBack(); //回溯到上一个单词
-				if (type == TypeBoundrary && value == 6)
+				if (type == TypeBoundrary && value == 6)   //  }
 				{
 					return;
 				}
 				else
 				{
-					cout << "erro: line " << line << "，while语句缺'}'" << endl;
+					out2 << "erro: line " << line << "，while语句缺'}'" << endl;
 				}
 			}
 			else
 			{
-				cout << "erro: line " << line << "，while语句缺'{'" << endl;
+				out2 << "erro: line " << line << "，while语句缺'{'" << endl;
 			}
 		}
 		else
 		{
-			cout << "erro: line " << line << "，while语句缺')'" << endl;
+			out2 << "erro: line " << line << "，while语句缺')'" << endl;
 		}
 	}
 	else
 	{
-		cout << "erro: line " << line << "，while语句缺'('" << endl;
+		out2 << "erro: line " << line << "，while语句缺'('" << endl;
 	}
 }
 
@@ -662,64 +632,65 @@ void myDeclare(int typetmp, int valuetmp)
 	{
 		IDTable[identifierCount].idType = valuetmp;
 		IDTable[identifierCount].idName = identifier;
-		//IDTable[identifierCount].idName = identifier;
-		//IDTable[identifierCount].ds = identifier;
-		//strcpy(IDTable[identifierCount].idName, identifier);
-		identifierCount++;
-		
+		identifierCount+=1;
+
+		type = GetNext(value);
+		// = 
 		if (type == 2 && value == 7)  //为 =
 		{
+			type = GetNext(value);
 			myExpE();
-
-			if (!emptyFlag)
+			if (type == TypeBoundrary && value == 2)
 			{
-				type = GetNext(value);
-				emptyFlag = 0;
+				return;
 			}
-			if (type = TypeOperator && value == 2)
+			else if (type == TypeBoundrary && value == 1)      //为 ,
 			{
+				myDeclare(type, value);
 				return;
 			}
 			else
 			{
-				cout << "erro: line " << line << ", 赋值错误" << endl;
+				out2 << "erro: line " << line << ", 赋值错误" << endl;
 			}
 			return;
 		}
+		// ;
 		else if (type == TypeBoundrary && value == 2)  //为 ;
 		{
 			return;
 		}
+		// ,
 		else if (type == TypeBoundrary && value == 1)      //为 ,
 		{
 			myDeclare(type, value);
-			return;
 		}
 		else
 		{
-			cout << "erro: line " << line << ", 定义错误" << endl;
-			return;
+			out2 << "erro: line " << line << ", 定义错误" << endl;
 		}
 	}
 	else
 	{
-		cout << "erro: line " << line << ", 变量声明错误" << endl;
-		return;
+		out2 << "erro: line " << line << ", 声明错误（标识符已定义）" << endl;
 	}
 }
 
 void myAssignmentStmt()     //赋值
 {
 	type = GetNext(value);
-	if (type == TypeOperator && 
-		(value == 7 || value == 12 || value == 13 || value == 14 || value == 15 || value == 16)) 
+	if (type == TypeOperator &&
+		(value == 7 || value == 12 || value == 13 || value == 14 || value == 15 || value == 16))
 	{
-		myExpE();
-		
-		if (!emptyFlag)
+		type = GetNext(value);
+		if (type == 1 && (value == 9 || value == 10))
 		{
 			type = GetNext(value);
-			emptyFlag = 0;
+			
+		}
+		else
+		{
+			myExpE();
 		}
 		if (type = TypeBoundrary && value == 2)
 		{
@@ -727,94 +698,134 @@ void myAssignmentStmt()     //赋值
 		}
 		else
 		{
-			cout << "erro: line " << line << ", 赋值错误，缺少';'" << endl;
+			out2 << "erro: line " << line << ", 赋值错误，缺少';'" << endl;
 		}
 	}
 	else
 	{
-		cout << "erro: line " << line << ", 赋值错误" << endl;
+		out2 << "erro: line " << line << ", 赋值错误" << endl;
 	}
-	/*else if ((type == TypeOperator && value == 23) || (type == TypeOperator && value == 24))
-	{
-		type = GetNext(value);
-		if()
-		return;
-	}*/
 }
-
 
 void myIf()
 {
 	type = GetNext(value);
-	if (type == TypeBoundrary && value == 3)
+	if (type == TypeBoundrary && value == 3)  // (
 	{
 		myCondition();
-		type = GetNext(value);
-		if (type == TypeBoundrary && value == 4)
+		if (type == TypeBoundrary && value == 4)  // )
 		{
 			type = GetNext(value);
-			if (type == TypeBoundrary && value == 5)
+			if (type == TypeBoundrary && value == 5)  // {
 			{
+				type = GetNext(value);
 				myFunctionBody();
-				if (type == TypeBoundrary && value == 6)
+				if (type == TypeBoundrary && value == 6)  // }
 				{
-					return;
+					type = GetNext(value);
+					if (type == TypeKeyWord && value == 5)   // else
+					{
+						myElse();
+					}
+					else
+					{
+						myFunctionStmt();
+					}
 				}
 				else
 				{
-					cout << "erro: line " << line << "，if语句缺'}'" << endl;
+					out2 << "erro: line " << line << "，if语句缺'}'" << endl;
 				}
 			}
 			else
 			{
-				cout << "erro: line " << line << "，if语句缺'{'" << endl;
+				out2 << "erro: line " << line << "，if语句缺'{'" << endl;
 			}
 		}
 		else
 		{
-			cout << "erro: line " << line << "，if语句缺')'" << endl;
+			out2 << "erro: line " << line << "，if语句缺')'" << endl;
 		}
 	}
 	else
 	{
-		cout << "erro: line " << line << "，if语句缺'('" << endl;
+		out2 << "erro: line " << line << "，if语句缺'('" << endl;
 	}
 }
 
-void myFunctionStmt(int typetmp, int valuetmp)
+void myElse()
 {
-	if (typetmp == TypeKeyWord && (valuetmp == 1 || valuetmp == 7))
-	{
-		myDeclare(typetmp, valuetmp);
-		return;
-	}
-	else if (typetmp == TypeIdentifier && (valuetmp == 1 || valuetmp == 7))
-	{
-		myAssignmentStmt();
-		return;
-	}
-	else if (typetmp == TypeKeyWord && valuetmp == 4) //if stmt
+	type = GetNext(value);
+	if (type == TypeKeyWord && value == 4)
 	{
 		myIf();
 		return;
 	}
-	else if (typetmp == TypeKeyWord && valuetmp == 6)  // while stmt
+	else if (type == TypeBoundrary && value == 5)
+	{
+		type = GetNext(value);
+		myFunctionBody();
+		if (type == TypeBoundrary && value == 6)
+		{
+			return;
+		}
+		else
+		{
+			out2 << "erro: line " << line << "，else语句缺'}'" << endl;
+		}
+	}
+	else
+	{
+		out2 << "erro: line " << line << "，else语句缺'{'" << endl;
+	}
+}
+
+void myFunctionStmt()      //调用时为当前判断字符
+{
+	if (type == TypeKeyWord && (value == 1 || value == 8))
+	{
+		myDeclare(type, value);
+		return;
+	}
+	else if (type == TypeIdentifier && (value == 1 || value == 8))
+	{
+		myAssignmentStmt();
+		return;
+	}
+	else if (type == TypeKeyWord && value == 4) //if stmt
+	{
+		myIf();
+		return;
+	}
+	else if (type == TypeKeyWord && value == 6)  // while stmt
 	{
 		myWhile();
 		return;
 	}
-	else if (typetmp == TypeKeyWord && valuetmp == 10) // return stmt
+	else if (type == TypeKeyWord && value == 10) // return stmt
 	{
 		//myReturn();
 		return;
 	}
-}
-
-void myFunctionBody()
-{
-	while (type != 3 && value != 6)  ///函数体没结束
+	else if (type == TypeBoundrary && value == 2)
 	{
-		myFunctionStmt(type, value);
+		return;
+	}
+	else if (type == 0)
+	{
+		out2 << "erro: line " << line << "，未定义标识符" << endl;
+	}
+	else
+	{
+		//return;
+		out2 << "erro: line " << line << "，语句错误（未识别或应输入表达式）" << endl;
+	}
+}
+void myFunctionBody()  //调用时为当前判断字符
+{
+	while (!(type == 3 && value == 6))  ///函数体没结束
+	{
+		myFunctionStmt();
 		type = GetNext(value);
 	}
 }
@@ -822,9 +833,14 @@ void myFunctionBody()
 void parse()
 {
 	type = GetNext(value);
-	myFunctionStmt(type, value);
+	while (-1 != type)
+	{
+		
+		myFunctionStmt();
+		type = GetNext(value);
+	}
+	
 }
-
 
 int main()
 {
@@ -844,11 +860,20 @@ int main()
 	{
 		temp[num++] = in.get();
 	}
-	num--;
+	temp[num] = '\0';
 	in.close();
 
+	string flie2 = "ParsingResult.txt";
+	
+	out2.open(flie2, ios::out);
+	if (!out2.is_open())
+	{
+		return NULL;
+	}
 	preTreatment(temp);
 	parse();
-	
+
+	out2.close();
+
 	return 0;
 }

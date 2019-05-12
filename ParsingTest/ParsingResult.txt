@@ -1,0 +1,17 @@
+erro: line 5, 赋值错误，缺少')'
+erro: line 12, 表达式错误
+erro: line 12, 赋值错误
+erro: line 13, 声明错误（标识符已定义）
+erro: line 15, 赋值错误
+erro: line 39，语句错误（未识别或应输入表达式）
+erro: line 40，语句错误（未识别或应输入表达式）
+erro: line 43, 表达式错误
+erro: line 48，if语句缺'('
+erro: line 49，语句错误（未识别或应输入表达式）
+erro: line 59，while语句缺'('
+erro: line 59，语句错误（未识别或应输入表达式）
+erro: line 59，语句错误（未识别或应输入表达式）
+erro: line 61，语句错误（未识别或应输入表达式）
+erro: line 63, 表达式错误
+erro: line 65，while语句缺'{'
+erro: line 65，语句错误（未识别或应输入表达式）

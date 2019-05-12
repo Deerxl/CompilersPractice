@@ -5,9 +5,10 @@ using namespace std;
 
 #define MaxPerToken 25
 
-const char* keyWords[] = { "int", "void", "main", "if", "else", "while", "for", "bool" , "true", "false", "return" };
+const char* keyWords[] = { "int", "void", "main", "if", "else", "while", "bool" , "true", "false", "return" };
 char boundaries[] = { ',', ';', '(', ')', '{', '}' };
 char operators[] = { '+', '-', '*', '/', '%', '!', '=', '<', '>', '&', '|' };
+
 
 int isDigit(char temp)
 {
@@ -132,7 +133,6 @@ void lexicalAnalysis(char buff[])
 {
 	char token[MaxPerToken];
 	int j = 0;
-	char* identifiers[MaxPerToken];
 
 	ofstream out("output.text");
 	if (!out.is_open())
@@ -162,6 +162,7 @@ void lexicalAnalysis(char buff[])
 			int q = i + 1;
 			if ((buff[m] == '+' && buff[++m] == '+'))
 			{
+				
 				out << "(4, " << buff[i] << ")" << endl;
 				out << "(2, $1$1)" << endl;
 				i = i + 2;
@@ -271,6 +272,8 @@ void lexicalAnalysis(char buff[])
 	}
 	out.close();
 }
+
+
 
 void outTables()
 {
